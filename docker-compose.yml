@@ -3,12 +3,22 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       CORS_ORIGINS: http://localhost:3000
       MAX_UPLOAD_MB: 100
       UPLOAD_DIR: /app/data/uploads
+      COMFYUI_URL: ${COMFYUI_URL:-http://host.docker.internal:8189}
+      COMFYUI_PUBLIC_URL: ${COMFYUI_PUBLIC_URL:-http://localhost:8189}
+      COMFYUI_WORKFLOW_PATH: /app/workflows/wan22_ti2v_5b_api.json
+      COMFYUI_PROMPT_NODE_ID: ${COMFYUI_PROMPT_NODE_ID:-}
+      COMFYUI_PROMPT_INPUT: ${COMFYUI_PROMPT_INPUT:-text}
+      COMFYUI_IMAGE_NODE_ID: ${COMFYUI_IMAGE_NODE_ID:-}
+      COMFYUI_IMAGE_INPUT: ${COMFYUI_IMAGE_INPUT:-image}
     volumes:
       - contentsignal_uploads:/app/data/uploads
+      - ./backend/workflows:/app/workflows:ro
   web:
     build:
       context: ./frontend
