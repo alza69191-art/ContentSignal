@@ -122,7 +122,7 @@ async def get_job(job_id: str, request: Request):
             job["message"] = f"ComfyUI status check failed: {exc}"
     result = dict(job)
     result["output_files"] = [
-        {**item, "url": f"{str(request.base_url).rstrip('/')}/api/jobs/{job_id}/outputs/{index}"}
+        {**item, "url": f"/api/jobs/{job_id}/outputs/{index}"}
         for index, item in enumerate(job["output_files"])
     ]
     return result
