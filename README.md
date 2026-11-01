@@ -1,80 +1,56 @@
 # ContentSignal
 
-**ContentSignal** is a web-based AI video creation workspace. The starter release provides a responsive Arabic-first interface and a FastAPI backend for three workflows:
+**ContentSignal** is a web-based AI video creation workspace. The backend includes a ComfyUI integration bridge for open-source **Wan 2.2 TI2V-5B** workflows.
 
-- **Text to Video** — submit a text prompt.
-- **Image to Video** — upload an image and describe the motion.
-- **Video to Video** — upload a source video and describe the transformation.
+## Generation engine
 
-## Current status
+- **Text to Video:** Wan 2.2 TI2V-5B.
+- **Image to Video:** Wan 2.2 TI2V-5B.
+- **Video to Video:** not enabled in this first integration; it requires a separate compatible workflow/model.
+- ComfyUI runs the model; FastAPI submits jobs and checks their status.
 
-This repository contains the application foundation, request validation, upload storage, and job-status endpoints. **Video rendering is not active yet**: no generation provider or model has been connected. A submitted job is marked `waiting_for_provider`, not falsely reported as rendered.
+Wan 2.2 TI2V-5B supports text-to-video and image-to-video. The upstream project documents 720p at 24 FPS. Actual speed and feasible resolution depend on GPU memory, quantization, and workflow settings.
 
-The initial job registry is in memory and resets when the API restarts. Uploaded files are stored in a Docker volume when using Compose. This is a development foundation, not a production deployment.
+## Connect ComfyUI
 
-## Run with Docker
+1. Install and run ComfyUI on a machine with a supported NVIDIA GPU.
+2. Install/download the Wan 2.2 TI2V-5B model files and load the matching workflow.
+3. In ComfyUI, export the workflow using **Save (API Format)**.
+4. Place the exported JSON at `backend/workflows/wan22_ti2v_5b_api.json` (create the folder if needed).
+5. Identify the prompt node ID/input key and image node ID/input key in the exported JSON.
+6. Set these variables in `backend/.env` or the API container environment: `COMFYUI_URL`, `COMFYUI_WORKFLOW_PATH`, `COMFYUI_PROMPT_NODE_ID`, `COMFYUI_PROMPT_INPUT`, `COMFYUI_IMAGE_NODE_ID`, and `COMFYUI_IMAGE_INPUT`.
+
+The API-format workflow is deployment-specific because node IDs and input names differ. Never expose ComfyUI directly to the public internet; keep it on a private network and authenticate the ContentSignal API.
+
+For Docker Desktop, `host.docker.internal` usually lets the API container reach ComfyUI running on the host. If ComfyUI runs in another container, use its Compose service name.
+
+## Run the app
 
 Requirements: Docker Desktop with the Compose plugin.
 
-```bash
+~~~bash
 docker compose up --build
-```
+~~~
 
-Then open:
+Open:
 - Web app: http://localhost:3000
 - API health: http://localhost:8000/health
 - Interactive API docs: http://localhost:8000/docs
 
-Stop with `Ctrl+C`; run `docker compose down` to stop and remove containers. Uploaded files remain in the named volume unless it is explicitly removed.
-
-## Run without Docker
-
-### Backend
-
-Python 3.10+ is required.
-
-```bash
-cd backend
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-### Frontend
-
-Node.js 20+ is recommended.
-
-```bash
-cd frontend
-npm install
-```
-
-Copy `.env.example` to `.env.local` if you need a custom API URL. Then run:
-
-```bash
-npm run dev
-```
-
-Open http://localhost:3000.
+For local development, use Python 3.10+ and Node.js 20+. Install backend dependencies with `pip install -r backend/requirements.txt`, then run `uvicorn app.main:app --app-dir backend --reload`. Run the frontend with `cd frontend && npm install && npm run dev`.
 
 ## API
 
-- `GET /health` — service health.
-- `POST /api/jobs` — multipart form with `mode` (`text`, `image`, or `video`), optional `prompt`, and required `file` for image/video modes.
-- `GET /api/jobs/{job_id}` — read the current in-memory job record.
+- `GET /health` — API health.
+- `POST /api/jobs` — multipart form: `mode=text|image`, `prompt`, and an image `file` for image mode.
+- `GET /api/jobs/{job_id}` — refreshes ComfyUI job state and returns generated output file metadata.
 
-Uploads are limited to 100 MB by default. Configure `MAX_UPLOAD_MB`, `UPLOAD_DIR`, and `CORS_ORIGINS` through environment variables. The API checks declared MIME types; production must additionally inspect file signatures, scan uploads, enforce authentication/quotas, and use persistent job storage.
+Jobs are currently stored in memory and reset when the API restarts. Uploaded inputs are stored on disk. The API returns ComfyUI output URLs; configure browser access to the ComfyUI host, or add an authenticated output proxy/object-storage layer before public deployment.
 
-## Next engineering milestones
+## Current limitations and production work
 
-1. Select a video generation provider/model and verify its API, pricing, and regional availability.
-2. Add background workers and persistent job state (Redis + database).
-3. Add authentication, user quotas, project history, and secure object storage.
-4. Add render progress, output playback, and download handling.
-5. Add production monitoring, rate limits, and deployment configuration.
-
-Never commit API keys. Use environment variables or a managed secrets service.
+- This is an integration bridge, not a hosted GPU service. ComfyUI and Wan weights must be running and configured separately.
+- The exported API workflow must use the configured node IDs and input names.
+- The first integration supports text-to-video and image-to-video only.
+- Add a persistent database, background queue, authentication, per-user quotas, secure object storage, output proxying, upload signature validation, and monitoring before production use.
+- Do not commit model weights, workflow secrets, or credentials.
