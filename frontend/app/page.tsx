@@ -21,7 +21,7 @@ export default function Home() {
     if (!prompt.trim()) { setMessage("اكتب وصف الفيديو أولاً."); return; }
     if (mode==="image" && !file) { setMessage("اختر صورة أولاً."); return; }
     setBusy(true); setMessage(""); setOutputUrl("");
-    const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const api = process.env.NEXT_PUBLIC_API_URL || "";
     try {
       const body = new FormData(); body.append("mode",mode); body.append("prompt",prompt);
       if(file) body.append("file",file);
