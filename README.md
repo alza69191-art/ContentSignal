@@ -1,32 +1,47 @@
 # ContentSignal
 
-**ContentSignal** is a web-based AI video creation workspace. The backend includes a ComfyUI integration bridge for open-source **Wan 2.2 TI2V-5B** workflows.
+ContentSignal is an AI video creation web app. Its initial generation engine is **Wan 2.2 TI2V-5B in GGUF format**, run by ComfyUI and controlled through FastAPI.
 
-## Generation engine
+## Included generation paths
 
-- **Text to Video:** Wan 2.2 TI2V-5B.
-- **Image to Video:** Wan 2.2 TI2V-5B.
-- **Video to Video:** not enabled in this first integration; it requires a separate compatible workflow/model.
-- ComfyUI runs the model; FastAPI submits jobs and checks their status.
+- **Text to Video:** supported by the bundled workflow.
+- **Image to Video:** supported by the same Wan 2.2 TI2V-5B workflow.
+- **Video to Video:** disabled in this first release; it needs a different model/workflow.
 
-Wan 2.2 TI2V-5B supports text-to-video and image-to-video. The upstream project documents 720p at 24 FPS. Actual speed and feasible resolution depend on GPU memory, quantization, and workflow settings.
+The repository includes a ready-to-use ComfyUI API workflow at `backend/workflows/wan22_ti2v_5b_gguf_api.json`. It uses the GGUF loader node from [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF). The default starting resolution is 832×480 at 49 frames to reduce GPU memory pressure; adjust it after confirming the available VRAM.
 
-## Connect ComfyUI
+## Required model files
 
-1. Install and run ComfyUI on a machine with a supported NVIDIA GPU.
-2. Install/download the Wan 2.2 TI2V-5B model files and load the matching workflow.
-3. In ComfyUI, export the workflow using **Save (API Format)**.
-4. Place the exported JSON at `backend/workflows/wan22_ti2v_5b_api.json` (create the folder if needed).
-5. Identify the prompt node ID/input key and image node ID/input key in the exported JSON.
-6. Set these variables in `backend/.env` or the API container environment: `COMFYUI_URL`, `COMFYUI_WORKFLOW_PATH`, `COMFYUI_PROMPT_NODE_ID`, `COMFYUI_PROMPT_INPUT`, `COMFYUI_IMAGE_NODE_ID`, and `COMFYUI_IMAGE_INPUT`.
+Put these files in the matching ComfyUI model folders:
 
-The API-format workflow is deployment-specific because node IDs and input names differ. Never expose ComfyUI directly to the public internet; keep it on a private network and authenticate the ContentSignal API.
+| File | ComfyUI folder |
+|---|---|
+| `Wan2.2-TI2V-5B-Q4_K_M.gguf` | `models/unet/` (GGUF loader's UNet folder) |
+| `umt5_xxl_fp8_e4m3fn_scaled.safetensors` | `models/text_encoders/` |
+| `wan2.2_vae.safetensors` | `models/vae/` |
 
-For Docker Desktop, `host.docker.internal` usually lets the API container reach ComfyUI running on the host. If ComfyUI runs in another container, use its Compose service name.
+Install the GGUF custom node and its dependency, then restart ComfyUI:
 
-## Run the app
+~~~bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/city96/ComfyUI-GGUF
+pip install -r ComfyUI-GGUF/requirements.txt
+~~~
 
-Requirements: Docker Desktop with the Compose plugin.
+Make sure the model filename in the workflow matches the exact filename visible in ComfyUI. If yours differs, edit the `unet_name` value in the workflow JSON.
+
+## Connect the app to ComfyUI
+
+1. Start ComfyUI with its API listening on port 8189, for example: `python main.py --listen 0.0.0.0 --port 8189`.
+2. Copy `.env.example` to `.env` and set `COMFYUI_URL` to the address reachable from the FastAPI container.
+3. Set `COMFYUI_PUBLIC_URL` to an address reachable by the user's browser for generated-video previews.
+4. Keep the bundled workflow path and node IDs unless you replace the workflow.
+
+For Docker Desktop, `host.docker.internal:8189` usually reaches ComfyUI running on the host. If ComfyUI runs in another container, use its Compose service name. Never expose the ComfyUI API publicly without a secure private network or authenticated proxy.
+
+## Run the web app and API
+
+Requirements: Docker Desktop with Docker Compose, Node 20+ for local frontend development, Python 3.10+ for local backend development.
 
 ~~~bash
 docker compose up --build
@@ -35,22 +50,16 @@ docker compose up --build
 Open:
 - Web app: http://localhost:3000
 - API health: http://localhost:8000/health
-- Interactive API docs: http://localhost:8000/docs
+- API docs: http://localhost:8000/docs
 
-For local development, use Python 3.10+ and Node.js 20+. Install backend dependencies with `pip install -r backend/requirements.txt`, then run `uvicorn app.main:app --app-dir backend --reload`. Run the frontend with `cd frontend && npm install && npm run dev`.
-
-## API
+## API endpoints
 
 - `GET /health` — API health.
-- `POST /api/jobs` — multipart form: `mode=text|image`, `prompt`, and an image `file` for image mode.
-- `GET /api/jobs/{job_id}` — refreshes ComfyUI job state and returns generated output file metadata.
+- `POST /api/jobs` — multipart form with `mode=text` or `mode=image`, `prompt`, and an image file for image mode.
+- `GET /api/jobs/{job_id}` — checks ComfyUI and returns job status and output metadata.
 
-Jobs are currently stored in memory and reset when the API restarts. Uploaded inputs are stored on disk. The API returns ComfyUI output URLs; configure browser access to the ComfyUI host, or add an authenticated output proxy/object-storage layer before public deployment.
+Jobs are stored in memory for this initial integration and reset when the API restarts. Uploaded files are stored in the backend volume. This is an integration package, not a hosted GPU service: ComfyUI, the model weights, and a GPU runtime must be running separately.
 
-## Current limitations and production work
+## Before production
 
-- This is an integration bridge, not a hosted GPU service. ComfyUI and Wan weights must be running and configured separately.
-- The exported API workflow must use the configured node IDs and input names.
-- The first integration supports text-to-video and image-to-video only.
-- Add a persistent database, background queue, authentication, per-user quotas, secure object storage, output proxying, upload signature validation, and monitoring before production use.
-- Do not commit model weights, workflow secrets, or credentials.
+Add persistent job storage, a background queue, user authentication, quotas, secure object storage, authenticated output proxying, file signature validation, monitoring, and rate limiting. Do not commit model weights, user uploads, or credentials.
