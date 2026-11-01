@@ -48,7 +48,11 @@ async def health():
 
 
 @app.post("/api/jobs", status_code=202)
-async def create_job(mode: str = Form(...), prompt: str = Form(""), file: UploadFile | None = File(default=None)):
+async def create_job(
+    mode: str = Form(...), prompt: str = Form(""),
+    width: int = Form(832), height: int = Form(480), frames: int = Form(49), steps: int = Form(20),
+    file: UploadFile | None = File(default=None),
+):
     if mode not in {"text", "image", "video"}:
         raise HTTPException(status_code=400, detail="Unsupported generation mode")
     if mode == "text" and not prompt.strip():
@@ -57,6 +61,12 @@ async def create_job(mode: str = Form(...), prompt: str = Form(""), file: Upload
         raise HTTPException(status_code=400, detail="A source file is required for this mode")
     if mode == "video":
         raise HTTPException(status_code=501, detail="Video-to-video is not enabled in the initial Wan 2.2 TI2V-5B integration.")
+    if not (256 <= width <= 1280 and 256 <= height <= 1280 and width % 16 == 0 and height % 16 == 0):
+        raise HTTPException(status_code=400, detail="Width and height must be multiples of 16 between 256 and 1280.")
+    if not (9 <= frames <= 121 and (frames - 1) % 4 == 0):
+        raise HTTPException(status_code=400, detail="Frame count must be 4n+1 and between 9 and 121.")
+    if not (1 <= steps <= 40):
+        raise HTTPException(status_code=400, detail="Steps must be between 1 and 40.")
 
     job_id = str(uuid4())
     source_path = None
@@ -79,7 +89,7 @@ async def create_job(mode: str = Form(...), prompt: str = Form(""), file: Upload
             await file.close()
 
     try:
-        comfy_prompt_id = await submit_generation(mode, prompt.strip(), source_path)
+        comfy_prompt_id = await submit_generation(mode, prompt.strip(), source_path, width, height, frames, steps)
     except ComfyUIError as exc:
         if source_path:
             source_path.unlink(missing_ok=True)
@@ -95,6 +105,10 @@ async def create_job(mode: str = Form(...), prompt: str = Form(""), file: Upload
         "status": "processing",
         "mode": mode,
         "prompt": prompt.strip(),
+        "width": width,
+        "height": height,
+        "frames": frames,
+        "steps": steps,
         "source_file": source_path.name if source_path else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "message": "Generation queued in ComfyUI using Wan 2.2 TI2V-5B GGUF.",
