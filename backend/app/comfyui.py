@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 import httpx
 
 COMFYUI_URL = os.getenv("COMFYUI_URL", "http://127.0.0.1:8189").rstrip("/")
+COMFYUI_PUBLIC_URL = os.getenv("COMFYUI_PUBLIC_URL", COMFYUI_URL).rstrip("/")
 WORKFLOW_PATH = Path(os.getenv("COMFYUI_WORKFLOW_PATH", ""))
 PROMPT_NODE_ID = os.getenv("COMFYUI_PROMPT_NODE_ID", "")
 IMAGE_NODE_ID = os.getenv("COMFYUI_IMAGE_NODE_ID", "")
@@ -84,7 +85,7 @@ async def get_generation(prompt_id: str) -> dict:
                         "filename": item["filename"],
                         "subfolder": item.get("subfolder", ""),
                         "type": item.get("type", "output"),
-                        "url": f"{COMFYUI_URL}/view?{urlencode(item)}",
+                        "url": f"{COMFYUI_PUBLIC_URL}/view?{urlencode(item)}",
                     })
     completed = record.get("status", {}).get("completed", False)
     return {"status": "completed" if completed and outputs else "processing", "output_files": outputs}
