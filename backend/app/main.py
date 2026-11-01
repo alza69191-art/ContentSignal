@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
@@ -119,7 +119,7 @@ async def create_job(
 
 
 @app.get("/api/jobs/{job_id}")
-async def get_job(job_id: str, request: Request):
+async def get_job(job_id: str):
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
