@@ -30,6 +30,10 @@ pip install -r ComfyUI-GGUF/requirements.txt
 
 Make sure the model filename in the workflow matches the exact filename visible in ComfyUI. If yours differs, edit the `unet_name` value in the workflow JSON.
 
+## One-click Google Colab setup
+
+Open the [ContentSignal Wan 2.2 Colab notebook](https://colab.research.google.com/github/alza69191-art/ContentSignal/blob/main/colab/ContentSignal_Wan22_Colab.ipynb), run its cells in order, and keep the runtime connected. It searches your Drive `ContentSignal/video_models` folder for the GGUF model, text encoder, and VAE, links them into ComfyUI, then starts ComfyUI, FastAPI, and the Next.js website. Only the website port is exposed; API requests and generated-video playback are routed through the same origin.
+
 ## Connect the app to ComfyUI
 
 1. Start ComfyUI with its API listening on port 8189, for example: `python main.py --listen 0.0.0.0 --port 8189`.
