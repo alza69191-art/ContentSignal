@@ -33,11 +33,12 @@ Make sure the model filename in the workflow matches the exact filename visible 
 ## Connect the app to ComfyUI
 
 1. Start ComfyUI with its API listening on port 8189, for example: `python main.py --listen 0.0.0.0 --port 8189`.
-2. Copy `.env.example` to `.env` and set `COMFYUI_URL` to the address reachable from the FastAPI container.
-3. Set `COMFYUI_PUBLIC_URL` to an address reachable by the user's browser for generated-video previews.
-4. Keep the bundled workflow path and node IDs unless you replace the workflow.
+2. Set `COMFYUI_URL` to the address reachable from the FastAPI container.
+3. Keep the bundled workflow path and node IDs unless you replace the workflow.
 
 For Docker Desktop, `host.docker.internal:8189` usually reaches ComfyUI running on the host. If ComfyUI runs in another container, use its Compose service name. Never expose the ComfyUI API publicly without a secure private network or authenticated proxy.
+
+Generated videos are served through the FastAPI output endpoint, so the user's browser does not need direct access to ComfyUI's port.
 
 ## Run the web app and API
 
@@ -57,9 +58,10 @@ Open:
 - `GET /health` — API health.
 - `POST /api/jobs` — multipart form with `mode=text` or `mode=image`, `prompt`, and an image file for image mode.
 - `GET /api/jobs/{job_id}` — checks ComfyUI and returns job status and output metadata.
+- `GET /api/jobs/{job_id}/outputs/{index}` — streams the generated output through FastAPI.
 
 Jobs are stored in memory for this initial integration and reset when the API restarts. Uploaded files are stored in the backend volume. This is an integration package, not a hosted GPU service: ComfyUI, the model weights, and a GPU runtime must be running separately.
 
 ## Before production
 
-Add persistent job storage, a background queue, user authentication, quotas, secure object storage, authenticated output proxying, file signature validation, monitoring, and rate limiting. Do not commit model weights, user uploads, or credentials.
+Add persistent job storage, a background queue, user authentication, quotas, secure object storage, file signature validation, monitoring, and rate limiting. Do not commit model weights, user uploads, or credentials.
