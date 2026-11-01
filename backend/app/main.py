@@ -7,15 +7,17 @@ import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from .comfyui import COMFYUI_URL, ComfyUIError, get_generation, submit_generation
+from .provider_router import generate_text, list_providers
 
 APP_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(APP_DIR.parent / "data" / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_MB", "100")) * 1024 * 1024
 
-app = FastAPI(title="ContentSignal API", version="0.4.0", description="Backend API for ContentSignal Wan 2.2 workflows")
+app = FastAPI(title="ContentSignal API", version="0.5.0", description="Multi-provider API for ContentSignal")
 origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +47,29 @@ def root():
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "ContentSignal API", "version": app.version}
+
+
+class PromptGenerationRequest(BaseModel):
+    provider: str = Field(..., min_length=2, max_length=32)
+    prompt: str = Field(..., min_length=1, max_length=20000)
+    model: str | None = Field(default=None, max_length=160)
+
+
+@app.get("/api/providers")
+def get_providers():
+    """List configured providers without exposing credentials."""
+    return {"providers": list_providers()}
+
+
+@app.post("/api/prompts/generate")
+async def generate_prompt(request: PromptGenerationRequest):
+    """Generate or improve a script/prompt using a configured text provider."""
+    try:
+        return await generate_text(request.provider, request.prompt, request.model)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/api/jobs", status_code=202)
