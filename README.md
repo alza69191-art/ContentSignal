@@ -10,6 +10,41 @@ ContentSignal is an AI video creation web app. Its initial generation engine is 
 
 The repository includes a ready-to-use ComfyUI API workflow at `backend/workflows/wan22_ti2v_5b_gguf_api.json`. It uses the GGUF loader node from [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF). The UI sends aspect ratio, clip duration (2–5 seconds), and quality settings to the API. The default is 832×480 at 49 frames (about 2 seconds at 24 FPS); longer clips and larger dimensions use more VRAM.
 
+## Multi-provider API router
+
+ContentSignal now includes a server-side provider registry for script and prompt generation:
+
+| Provider | Purpose | Free access |
+|---|---|---|
+| Google Gemini | Script writing and prompt improvement | Free quota may be available; account, region and current limits apply |
+| Groq | Fast script and prompt generation | Free-tier limits may apply |
+| OpenRouter | Access to models listed as free | Model availability and limits can change |
+| Wan 2.2 TI2V-5B | Local text-to-video and image-to-video | No per-request API fee; requires your own GPU/runtime and model files |
+
+The text providers use their OpenAI-compatible chat-completions endpoints. They are optional: the existing Wan 2.2 video path remains available without any text-provider key. No provider key is bundled in the repository or returned by the API.
+
+Configure keys in the private server environment (copy the variables from `backend/.env.example` into your deployment environment; do not commit real keys):
+
+- `GEMINI_API_KEY`, optional `GEMINI_MODEL`
+- `GROQ_API_KEY`, optional `GROQ_MODEL`
+- `OPENROUTER_API_KEY`, optional `OPENROUTER_MODEL`
+
+New endpoints:
+
+- `GET /api/providers` — provider list and enabled state, without secrets.
+- `POST /api/prompts/generate` — generate script/prompt text through a configured provider.
+
+Example request:
+
+~~~json
+{
+  "provider": "gemini",
+  "prompt": "Write a cinematic 5-minute fantasy film outline about a pink dragon."
+}
+~~~
+
+The API does not claim that any hosted video API is permanently free. Sora, Runway, Kling and other paid video APIs are not activated by this change. Add them only through separately verified official API adapters and your own credentials. Free quotas, model IDs and regional availability can change; check each provider's current dashboard before use.
+
 ## Required model files
 
 Put these files in the matching ComfyUI model folders:
