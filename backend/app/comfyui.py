@@ -35,7 +35,10 @@ def _load_workflow() -> dict:
     return workflow
 
 
-async def submit_generation(mode: str, prompt: str, source_path: Path | None) -> str:
+async def submit_generation(
+    mode: str, prompt: str, source_path: Path | None,
+    width: int = 832, height: int = 480, frames: int = 49, steps: int = 20,
+) -> str:
     if mode == "video":
         raise ComfyUIError(
             "Video-to-video is not enabled in this first integration. "
@@ -54,6 +57,10 @@ async def submit_generation(mode: str, prompt: str, source_path: Path | None) ->
     latent_node = workflow.get(LATENT_NODE_ID)
     if not isinstance(latent_node, dict) or not isinstance(latent_node.get("inputs"), dict):
         raise ComfyUIError(f"Wan latent node {LATENT_NODE_ID} was not found in the workflow.")
+    latent_node["inputs"].update({"width": width, "height": height, "length": frames})
+    sampler_node = workflow.get("3")
+    if isinstance(sampler_node, dict) and isinstance(sampler_node.get("inputs"), dict):
+        sampler_node["inputs"]["steps"] = steps
 
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
         if mode == "image":
