@@ -8,7 +8,7 @@ ContentSignal is an AI video creation web app. Its initial generation engine is 
 - **Image to Video:** supported by the same Wan 2.2 TI2V-5B workflow.
 - **Video to Video:** disabled in this first release; it needs a different model/workflow.
 
-The repository includes a ready-to-use ComfyUI API workflow at `backend/workflows/wan22_ti2v_5b_gguf_api.json`. It uses the GGUF loader node from [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF). The default starting resolution is 832×480 at 49 frames to reduce GPU memory pressure; adjust it after confirming the available VRAM.
+The repository includes a ready-to-use ComfyUI API workflow at `backend/workflows/wan22_ti2v_5b_gguf_api.json`. It uses the GGUF loader node from [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF). The UI sends aspect ratio, clip duration (2–5 seconds), and quality settings to the API. The default is 832×480 at 49 frames (about 2 seconds at 24 FPS); longer clips and larger dimensions use more VRAM.
 
 ## Required model files
 
